@@ -10,6 +10,7 @@ from pydantic import (
     BaseModel,
     Field,
     field_validator,
+    HttpUrl,
 )
 
 
@@ -49,6 +50,24 @@ class Message(BaseModel):
             raise ValueError("Content contains null bytes")
 
         return v
+
+class NewsImpactRequest(BaseModel):
+    """Request model for news impact analysis.
+
+    Attributes:
+        url: The URL of the news article to analyze.
+        field: The specific field to analyze the news impact on.
+    """
+    url: HttpUrl = Field(..., description="URL of the news article")
+    field: str = Field(..., description="Field to analyze impact on (e.g., finance, technology)", min_length=1, max_length=50)
+
+class NewsImpactResponse(BaseModel):
+    """Response model for news impact analysis.
+
+    Attributes:
+        content: The analysis of the news article's impact.
+    """
+    content: str = Field(..., description="Analysis of the news article's impact")
 
 
 class ChatRequest(BaseModel):

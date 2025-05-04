@@ -17,7 +17,8 @@ from fastapi.responses import StreamingResponse
 
 from app.api.v1.auth import get_current_session
 from app.core.config import settings
-from app.core.langgraph.graph import LangGraphAgent
+from app.core.langraph.graph import LangGraphAgent
+from app.core.langraph.tools.web_scraper import analyze_news_impact
 from app.core.limiter import limiter
 from app.core.logging import logger
 from app.models.session import Session
@@ -26,6 +27,8 @@ from app.schemas.chat import (
     ChatResponse,
     Message,
     StreamResponse,
+    NewsImpactRequest,
+    NewsImpactResponse,
 )
 
 router = APIRouter()
@@ -67,6 +70,49 @@ async def chat(
         return ChatResponse(messages=result)
     except Exception as e:
         logger.error("chat_request_failed", session_id=session.id, error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/news/impact", response_model=NewsImpactResponse)
+@limiter.limit(settings.RATE_LIMIT_ENDPOINTS["chat"][0])
+async def analyze_news_impact_endpoint(
+    request: Request,
+    news_request: NewsImpactRequest,
+    # session: Session = Depends(get_current_session),
+):
+    """Analyze the potential impact of a news article.
+
+    Args:
+        request: The FastAPI request object for rate limiting.
+        news_request: The news impact analysis request.
+        session: The current session from the auth token.
+
+    Returns:
+        NewsImpactResponse: The analysis of the news article's impact.
+
+    Raises:
+        HTTPException: If there's an error processing the request.
+    """
+    try:
+        # logger.info(
+        #     "news_impact_request_received",
+        #     session_id=session.id,
+        #     url=news_request.url,
+        #     field=news_request.field,
+        # )
+
+        # Analyze the news impact
+        question = analyze_news_impact(str(news_request.url), news_request.field)
+        # result = await agent.get_response(question)
+
+        if question is None:
+            raise HTTPException(status_code=400, detail="Unable to extract or analyze the news article content.")
+
+    #     logger.info("news_impact_request_processed", session_id=session.id)
+
+        return NewsImpactResponse(content=question)
+    except Exception as e:
+    #     logger.error("news_impact_request_failed", session_id=session.id, error=str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
