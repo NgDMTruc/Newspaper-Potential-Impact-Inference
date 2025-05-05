@@ -73,6 +73,8 @@ async def chat(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+import requests
+
 @router.post("/news/impact", response_model=NewsImpactResponse)
 @limiter.limit(settings.RATE_LIMIT_ENDPOINTS["chat"][0])
 async def analyze_news_impact_endpoint(
@@ -80,19 +82,32 @@ async def analyze_news_impact_endpoint(
     news_request: NewsImpactRequest,
     # session: Session = Depends(get_current_session),
 ):
-    """Analyze the potential impact of a news article.
+    """Analyze the potential impact of a news article using Ollama LLM API directly."""
+    try:
+        # Compose the prompt for LLM
+        prompt = (
+            f"Analyze the potential impact of this news article on the {news_request.field} sector. "
+            f"URL: {news_request.url}\n"
+            f"Please extract the main content and provide:\n"
+            f"- Key events or developments\n- Potential short-term and long-term consequences\n- Specific insights related to {news_request.field}"
+        )
+        ollama_url = "http://localhost:11434/v1/chat/completions"
+        payload = {
+            "model": "deepseek-r1:1.5b",  # or your preferred model name
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "stream": False
+        }
+        response = requests.post(ollama_url, json=payload, timeout=60)
+        response.raise_for_status()
+        data = response.json()
+        llm_content = data["choices"][0]["message"]["content"]
+        return NewsImpactResponse(content=llm_content)
+    except Exception as e:
+        logger.error("news_impact_failed", error=str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to analyze news impact: " + str(e))
 
-    Args:
-        request: The FastAPI request object for rate limiting.
-        news_request: The news impact analysis request.
-        session: The current session from the auth token.
-
-    Returns:
-        NewsImpactResponse: The analysis of the news article's impact.
-
-    Raises:
-        HTTPException: If there's an error processing the request.
-    """
     try:
         # logger.info(
         #     "news_impact_request_received",

@@ -130,7 +130,7 @@ async def get_current_session(
             logger.error("session_not_found", session_id=session_id)
             raise HTTPException(
                 status_code=404,
-                detail="Session not found",
+                detail=f"Session not found",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
